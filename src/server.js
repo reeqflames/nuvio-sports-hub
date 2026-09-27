@@ -1,6 +1,6 @@
 import http from "node:http";
 import { decodeJson, parseProxyId } from "./codec.js";
-import { buildGroupCatalog, buildManifest } from "./catalog.js";
+import { buildGroupCatalog, buildManifest, getCachedCatalogMeta } from "./catalog.js";
 import { GROUP_BY_ID, GROUPS } from "./constants.js";
 import { fetchManifest, fetchMeta, fetchStreams, normalizeManifestUrl } from "./upstream.js";
 import { providerHealth } from "./providers/registry.js";
@@ -86,13 +86,23 @@ function sanitizeStreams(streams = []) {
 
 async function localizeMeta(meta, proxyId) {
   if (!meta) return null;
-  const scheduleLabel = formatMalaysiaSchedule(meta, { includeYear: true });
-  const localized = {
+
+  const cached = getCachedCatalogMeta(proxyId);
+  const merged = {
+    ...(cached || {}),
     ...meta,
+    poster: meta.poster || cached?.poster,
+    background: meta.background || cached?.background,
+    logo: meta.logo || cached?.logo
+  };
+
+  const scheduleLabel = formatMalaysiaSchedule(merged, { includeYear: true });
+  const localized = {
+    ...merged,
     id: proxyId,
     type: "tv",
-    releaseInfo: scheduleLabel || meta.releaseInfo,
-    description: cleanDescriptionWithoutSchedule(meta)
+    releaseInfo: scheduleLabel || merged.releaseInfo,
+    description: cleanDescriptionWithoutSchedule(merged)
   };
   return enrichArtwork(localized, { detail: true });
 }
