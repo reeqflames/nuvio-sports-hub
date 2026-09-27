@@ -6,6 +6,7 @@ import { fetchManifest, fetchMeta, fetchStreams, normalizeManifestUrl } from "./
 import { providerHealth } from "./providers/registry.js";
 import { formatMalaysiaSchedule, localizeDescription } from "./core/time.js";
 import { enrichArtwork } from "./providers/thesportsdb.js";
+import { renderFallbackCard } from "./artwork.js";
 
 const PORT = Number(process.env.PORT || 3000);
 const DEFAULT_UPSTREAM = process.env.DEFAULT_UPSTREAM ? normalizeManifestUrl(process.env.DEFAULT_UPSTREAM) : null;
@@ -209,6 +210,18 @@ async function handler(req, res) {
 
   if (url.pathname === "/health") {
     return json(res, 200, { ok: true, service: "nuvio-sports-hub", version: "0.1.0" });
+  }
+
+  if (url.pathname === "/art/card.png") {
+    const title = (url.searchParams.get("title") || "Sports Event").slice(0, 140);
+    const subtitle = (url.searchParams.get("subtitle") || "Nuvio Sports Hub").slice(0, 180);
+    const png = await renderFallbackCard({ title, subtitle });
+    res.writeHead(200, {
+      "content-type": "image/png",
+      "access-control-allow-origin": "*",
+      "cache-control": "public, max-age=21600"
+    });
+    return res.end(png);
   }
 
   if (url.pathname === "/sources") {
