@@ -27,7 +27,10 @@ function html(res, status, body) {
 function configFromToken(token) {
   const config = decodeJson(token);
   if (!config?.upstream) throw new Error("Invalid Sports Hub configuration");
-  return { upstream: normalizeManifestUrl(config.upstream) };
+  const groups = Array.isArray(config.groups) && config.groups.length
+    ? config.groups.filter((id) => GROUP_BY_ID.has(id))
+    : GROUPS.map((group) => group.id);
+  return { upstream: normalizeManifestUrl(config.upstream), groups };
 }
 
 function appBase(req) {
@@ -45,20 +48,22 @@ function configurePage(req) {
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Nuvio Sports Hub</title>
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0b0d12;color:#f4f6fb;font-family:Inter,system-ui,sans-serif}.wrap{max-width:760px;margin:auto;padding:28px 18px 60px}.hero{padding:26px;border:1px solid #272b35;border-radius:22px;background:linear-gradient(145deg,#151922,#0f1117)}h1{margin:0 0 8px;font-size:30px}.muted{color:#a9b0be;line-height:1.55}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:22px 0}.pill{padding:14px;border:1px solid #292f3b;border-radius:14px;background:#11151d;font-weight:700}.box{margin-top:18px;padding:20px;border:1px solid #272b35;border-radius:18px;background:#10131a}label{display:block;font-weight:750;margin-bottom:9px}input{width:100%;padding:14px;border-radius:12px;border:1px solid #343a47;background:#090b10;color:#fff;font-size:15px}button,a.btn{display:inline-block;margin-top:12px;padding:13px 16px;border:0;border-radius:12px;background:#f3f5f8;color:#0a0b0e;font-weight:800;text-decoration:none;cursor:pointer}.result{display:none;margin-top:16px}.link{word-break:break-all;padding:12px;border-radius:12px;background:#080a0e;color:#c9d1e1;font-family:ui-monospace,monospace;font-size:12px}.tiny{font-size:12px;color:#7f8795}@media(max-width:520px){.grid{grid-template-columns:1fr}.hero{padding:20px}}</style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0b0d12;color:#f4f6fb;font-family:Inter,system-ui,sans-serif}.wrap{max-width:760px;margin:auto;padding:28px 18px 60px}.hero{padding:26px;border:1px solid #272b35;border-radius:22px;background:linear-gradient(145deg,#151922,#0f1117)}h1{margin:0 0 8px;font-size:30px}.muted{color:#a9b0be;line-height:1.55}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:22px 0}.pill{padding:14px;border:1px solid #343a47;border-radius:14px;background:#11151d;font-weight:700;color:#f4f6fb;text-align:left;cursor:pointer;transition:.15s}.pill.active{background:#f3f5f8;color:#0a0b0e;border-color:#f3f5f8}.pill:active{transform:scale(.98)}.box{margin-top:18px;padding:20px;border:1px solid #272b35;border-radius:18px;background:#10131a}label{display:block;font-weight:750;margin-bottom:9px}input{width:100%;padding:14px;border-radius:12px;border:1px solid #343a47;background:#090b10;color:#fff;font-size:15px}button,a.btn{display:inline-block;margin-top:12px;padding:13px 16px;border:0;border-radius:12px;background:#f3f5f8;color:#0a0b0e;font-weight:800;text-decoration:none;cursor:pointer}.result{display:none;margin-top:16px}.link{word-break:break-all;padding:12px;border-radius:12px;background:#080a0e;color:#c9d1e1;font-family:ui-monospace,monospace;font-size:12px}.tiny{font-size:12px;color:#7f8795}@media(max-width:520px){.grid{grid-template-columns:1fr}.hero{padding:20px}}</style>
 </head>
 <body><main class="wrap">
 <section class="hero">
 <h1>🏟️ Nuvio Sports Hub</h1>
 <p class="muted">One clean sports addon. Six TV-friendly collections. Your existing sports addon remains the upstream source.</p>
-<div class="grid">
-<div class="pill">⚽ Football</div><div class="pill">🏎️ Racing</div>
-<div class="pill">🥊 Fight</div><div class="pill">🏀 US Sports</div>
-<div class="pill">🎾 Racquet Sports</div><div class="pill">🏏 Other Sports</div>
+<div class="grid" id="sportsGrid">
+<button type="button" class="pill active" data-group="football">⚽ Football</button><button type="button" class="pill active" data-group="racing">🏎️ Racing</button>
+<button type="button" class="pill active" data-group="fight">🥊 Fight</button><button type="button" class="pill active" data-group="us-sports">🏀 US Sports</button>
+<button type="button" class="pill active" data-group="racquet">🎾 Racquet Sports</button><button type="button" class="pill active" data-group="other">🏏 Other Sports</button>
 </div>
+<p class="muted">Tap any sport above to include/exclude it. All six are selected by default.</p>
 </section>
 <section class="box">
-<label for="upstream">1. Paste your raw Highfly manifest URL</label>
+<a class="btn" href="https://sports.highfly.to/configure" target="_blank" rel="noopener">Open Highfly Configure ↗</a>
+<label for="upstream" style="margin-top:18px">1. Paste your raw Highfly manifest URL</label>
 <input id="upstream" autocomplete="off" placeholder="https://sports.highfly.to/.../manifest.json" />
 <p class="muted">In Highfly Configure, choose the sports you want, then use <b>Copy</b> to get the raw manifest URL. Paste it here.</p>
 <button id="build">Build Sports Hub link</button>
@@ -77,11 +82,15 @@ const upstream=document.getElementById("upstream");
 const result=document.getElementById("result");
 const link=document.getElementById("link");
 const open=document.getElementById("open");
-function token(value){return btoa(unescape(encodeURIComponent(JSON.stringify({upstream:value})))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+const pills=[...document.querySelectorAll(".pill[data-group]")];
+pills.forEach((pill)=>pill.onclick=()=>pill.classList.toggle("active"));
+function token(value,groups){return btoa(unescape(encodeURIComponent(JSON.stringify({upstream:value,groups})))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
 document.getElementById("build").onclick=()=>{
  const value=upstream.value.trim();
  if(!/^https?:\/\//i.test(value)){alert("Paste a valid http/https manifest URL first.");return}
- const url=base+"/c/"+token(value)+"/manifest.json";
+ const groups=pills.filter((pill)=>pill.classList.contains("active")).map((pill)=>pill.dataset.group);
+ if(!groups.length){alert("Select at least one sports category.");return}
+ const url=base+"/c/"+token(value,groups)+"/manifest.json";
  link.textContent=url;open.href=url;result.style.display="block";
 };
 document.getElementById("copy").onclick=async()=>{await navigator.clipboard.writeText(link.textContent);document.getElementById("copy").textContent="Copied ✓"};
@@ -114,7 +123,7 @@ async function handler(req, res) {
     const token = manifestMatch[1];
     const config = configFromToken(token);
     const sourceManifest = await fetchManifest(config.upstream);
-    return json(res, 200, buildManifest(sourceManifest), {
+    return json(res, 200, buildManifest(sourceManifest, config.groups), {
       "cache-control": "public, max-age=300"
     });
   }
@@ -123,7 +132,7 @@ async function handler(req, res) {
   if (catalogMatch) {
     const [, token, groupId] = catalogMatch;
     const config = configFromToken(token);
-    if (!GROUP_BY_ID.has(groupId)) return json(res, 404, { metas: [] });
+    if (!GROUP_BY_ID.has(groupId) || !config.groups.includes(groupId)) return json(res, 404, { metas: [] });
     const metas = await buildGroupCatalog(config.upstream, groupId);
     return json(res, 200, { metas });
   }
