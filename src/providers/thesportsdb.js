@@ -69,27 +69,40 @@ export class TheSportsDbProvider extends SportsProvider {
 export function eventArtwork(event = {}) {
   return {
     poster: event.strPoster || event.strThumb || null,
-    background: event.strFanart || event.strBanner || event.strThumb || null,
+    // Detail heroes need wide artwork. Do not use strThumb here because
+    // many event thumbs/posters are portrait and Nuvio will crop/zoom them badly.
+    background:
+      event.strFanart ||
+      event.strFanart1 ||
+      event.strFanart2 ||
+      event.strFanart3 ||
+      event.strBanner ||
+      null,
     badge: event.strBadge || null
   };
 }
 
-
-export function applyArtwork(meta = {}, event = null) {
+export function applyArtwork(meta = {}, event = null, { detail = false } = {}) {
   if (!event) return meta;
   const artwork = eventArtwork(event);
+
   return {
     ...meta,
+    // Catalog cards can still use the best event poster/thumb.
     poster: artwork.poster || meta.poster,
+    // Detail pages only override the hero when TheSportsDB has genuine wide art.
+    // Otherwise preserve the upstream/background fallback instead of stretching
+    // a portrait poster across the screen.
     background: artwork.background || meta.background,
     logo: artwork.badge || meta.logo,
-    _artworkSource: artwork.poster || artwork.background || artwork.badge ? "thesportsdb" : meta._artworkSource
+    _artworkSource: artwork.poster || artwork.background || artwork.badge ? "thesportsdb" : meta._artworkSource,
+    _artworkMode: detail ? "detail-wide" : "catalog"
   };
 }
 
 const sharedProvider = new TheSportsDbProvider();
 
-export async function enrichArtwork(meta = {}) {
+export async function enrichArtwork(meta = {}, options = {}) {
   const event = await sharedProvider.searchEvent(meta.name || meta.title);
-  return applyArtwork(meta, event);
+  return applyArtwork(meta, event, options);
 }
