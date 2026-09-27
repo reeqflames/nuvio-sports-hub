@@ -182,7 +182,8 @@ export async function buildGroupCatalog(manifestUrl, groupId) {
   return cacheSet(key, deduped);
 }
 
-export function buildManifest(sourceManifest = {}) {
+export function buildManifest(sourceManifest = {}, selectedGroupIds = GROUPS.map((group) => group.id)) {
+  const selected = new Set(selectedGroupIds);
   return {
     id: "community.nuvio.sports-hub",
     version: "0.1.0",
@@ -192,7 +193,7 @@ export function buildManifest(sourceManifest = {}) {
     background: sourceManifest.background,
     resources: ["catalog", "meta", "stream"],
     types: ["tv"],
-    catalogs: GROUPS.map((group) => ({
+    catalogs: GROUPS.filter((group) => selected.has(group.id)).map((group) => ({
       type: "tv",
       id: `nsh-${group.id}`,
       name: group.name
