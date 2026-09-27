@@ -62,11 +62,12 @@ function isChannelLikeMeta(meta = {}) {
 
   if (/\blive channel\b/i.test(text)) return true;
 
-  const channelBrand = /\b(sky sports|espn|tnt sports|bein sports|fox sports|redzone|premier sports|dazn)\b/i.test(name);
+  const channelBrand = /\b(sky sport(?:s)?|espn|tnt sport(?:s)?|bein sport(?:s)?|fox sport(?:s)?|redzone|premier sport(?:s)?|dazn|sport(?:s)?\s*\d+)\b/i.test(name);
+  const explicitChannel = /\b(?:live\s+channel|tv\s+channel|channel\s*\d*)\b/i.test(text);
   const matchupLike = /\bvs\b|\bversus\b|\s@\s|\bv\.?\s/i.test(name);
   const dated = Boolean(eventTimestamp(meta));
 
-  return channelBrand && !matchupLike && !dated;
+  return (channelBrand || explicitChannel) && !matchupLike && !dated;
 }
 
 export function classifyMeta(meta) {
