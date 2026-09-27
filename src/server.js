@@ -41,6 +41,29 @@ function appBase(req) {
   return `${proto}://${host}`;
 }
 
+function cleanText(value) {
+  if (typeof value !== "string") return value;
+  return value
+    .replace(/\s*[·•|~-]?\s*upgrade\s+to\s+premium\b.*$/i, "")
+    .replace(/\s*[·•|~-]?\s*premium\s+(?:only|required)\b.*$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function sanitizeStreams(streams = []) {
+  return streams.map((stream) => {
+    const cleaned = { ...stream };
+    if ("title" in cleaned) cleaned.title = cleanText(cleaned.title);
+    if ("name" in cleaned) cleaned.name = cleanText(cleaned.name);
+    if ("description" in cleaned) cleaned.description = cleanText(cleaned.description);
+    if ("behaviorHints" in cleaned && cleaned.behaviorHints && typeof cleaned.behaviorHints === "object") {
+      cleaned.behaviorHints = { ...cleaned.behaviorHints };
+      if ("filename" in cleaned.behaviorHints) cleaned.behaviorHints.filename = cleanText(cleaned.behaviorHints.filename);
+    }
+    return cleaned;
+  });
+}
+
 function configurePage(req) {
   const base = appBase(req);
   const defaultUpstream = DEFAULT_UPSTREAM || "";
@@ -201,7 +224,7 @@ async function handler(req, res) {
     const parsed = parseProxyId(proxyId);
     if (!parsed) return json(res, 404, { streams: [] });
     const payload = await fetchStreams(DEFAULT_UPSTREAM, parsed.t, parsed.i);
-    return json(res, 200, { streams: payload?.streams || [] }, {
+    return json(res, 200, { streams: sanitizeStreams(payload?.streams || []) }, {
       "cache-control": "no-store"
     });
   }
@@ -235,7 +258,7 @@ async function handler(req, res) {
     if (!parsed) return json(res, 404, { streams: [] });
 
     const payload = await fetchStreams(config.upstream, parsed.t, parsed.i);
-    return json(res, 200, { streams: payload?.streams || [] }, {
+    return json(res, 200, { streams: sanitizeStreams(payload?.streams || []) }, {
       "cache-control": "no-store"
     });
   }
