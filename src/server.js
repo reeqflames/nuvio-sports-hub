@@ -5,6 +5,7 @@ import { GROUP_BY_ID, GROUPS } from "./constants.js";
 import { fetchManifest, fetchMeta, fetchStreams, normalizeManifestUrl } from "./upstream.js";
 import { providerHealth } from "./providers/registry.js";
 import { formatMalaysiaSchedule, localizeDescription } from "./core/time.js";
+import { enrichArtwork } from "./providers/thesportsdb.js";
 
 const PORT = Number(process.env.PORT || 3000);
 const DEFAULT_UPSTREAM = process.env.DEFAULT_UPSTREAM ? normalizeManifestUrl(process.env.DEFAULT_UPSTREAM) : null;
@@ -82,16 +83,17 @@ function sanitizeStreams(streams = []) {
     });
 }
 
-function localizeMeta(meta, proxyId) {
+async function localizeMeta(meta, proxyId) {
   if (!meta) return null;
   const scheduleLabel = formatMalaysiaSchedule(meta, { includeYear: true });
-  return {
+  const localized = {
     ...meta,
     id: proxyId,
     type: "tv",
     releaseInfo: scheduleLabel || meta.releaseInfo,
     description: localizeDescription(meta, scheduleLabel)
   };
+  return enrichArtwork(localized);
 }
 
 function configurePage(req) {
@@ -248,7 +250,7 @@ async function handler(req, res) {
     const parsed = parseProxyId(proxyId);
     if (!parsed) return json(res, 404, { meta: null });
     const payload = await fetchMeta(DEFAULT_UPSTREAM, parsed.t, parsed.i);
-    const meta = payload?.meta ? localizeMeta(payload.meta, proxyId) : null;
+    const meta = payload?.meta ? await localizeMeta(payload.meta, proxyId) : null;
     return json(res, 200, { meta });
   }
 
@@ -281,7 +283,7 @@ async function handler(req, res) {
     if (!parsed) return json(res, 404, { meta: null });
 
     const payload = await fetchMeta(config.upstream, parsed.t, parsed.i);
-    const meta = payload?.meta ? localizeMeta(payload.meta, proxyId) : null;
+    const meta = payload?.meta ? await localizeMeta(payload.meta, proxyId) : null;
     return json(res, 200, { meta });
   }
 
