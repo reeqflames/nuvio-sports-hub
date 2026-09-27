@@ -93,7 +93,7 @@ async function localizeMeta(meta, proxyId) {
     releaseInfo: scheduleLabel || meta.releaseInfo,
     description: localizeDescription(meta, scheduleLabel)
   };
-  return enrichArtwork(localized);
+  return enrichArtwork(localized, { detail: true });
 }
 
 function configurePage(req) {
