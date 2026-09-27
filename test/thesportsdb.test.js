@@ -24,3 +24,12 @@ test("detail enrichment adds structured sports metadata", () => {
   assert.equal(enriched.homeTeam, "Team A");
   assert.equal(enriched.awayTeam, "Team B");
 });
+
+
+test("missing TheSportsDB match does not crash detail enrichment", () => {
+  const meta = { name: "Formula 1 Bahrain GP", description: "" };
+  const enriched = applyArtwork(meta, null, { detail: true });
+  assert.equal(enriched.name, "Formula 1 Bahrain GP");
+  assert.ok(enriched.poster);
+  assert.ok(enriched.background);
+});
