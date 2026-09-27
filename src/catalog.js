@@ -56,6 +56,19 @@ function metaText(meta) {
   );
 }
 
+function isChannelLikeMeta(meta = {}) {
+  const name = String(meta.name || meta.title || "");
+  const text = metaText(meta);
+
+  if (/\blive channel\b/i.test(text)) return true;
+
+  const channelBrand = /\b(sky sports|espn|tnt sports|bein sports|fox sports|redzone|premier sports|dazn)\b/i.test(name);
+  const matchupLike = /\bvs\b|\bversus\b|\s@\s|\bv\.?\s/i.test(name);
+  const dated = Boolean(eventTimestamp(meta));
+
+  return channelBrand && !matchupLike && !dated;
+}
+
 export function classifyMeta(meta) {
   const text = metaText(meta);
 
@@ -138,6 +151,8 @@ export async function buildGroupCatalog(manifestUrl, groupId) {
     if (result.status !== "fulfilled") continue;
     const { catalog, payload } = result.value;
     for (const meta of payload?.metas || []) {
+      if (isChannelLikeMeta(meta)) continue;
+
       const classified = classifyMeta(meta);
       const directCatalogMatch = matchesAny(catalogText(catalog), GROUP_BY_ID.get(groupId)?.keywords || []);
       if (classified === groupId || (directCatalogMatch && !classified)) {
