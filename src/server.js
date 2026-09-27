@@ -50,18 +50,76 @@ function cleanText(value) {
     .trim();
 }
 
+function streamText(stream = {}) {
+  return [
+    stream.title,
+    stream.name,
+    stream.description,
+    stream.behaviorHints?.filename
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function isPremiumStream(stream = {}) {
+  const text = streamText(stream);
+  return /upgrade\s+to\s+premium|premium\s+(?:only|required)|(?:^|\s)locked(?:\s|$)|🔒/.test(text);
+}
+
 function sanitizeStreams(streams = []) {
-  return streams.map((stream) => {
-    const cleaned = { ...stream };
-    if ("title" in cleaned) cleaned.title = cleanText(cleaned.title);
-    if ("name" in cleaned) cleaned.name = cleanText(cleaned.name);
-    if ("description" in cleaned) cleaned.description = cleanText(cleaned.description);
-    if ("behaviorHints" in cleaned && cleaned.behaviorHints && typeof cleaned.behaviorHints === "object") {
-      cleaned.behaviorHints = { ...cleaned.behaviorHints };
-      if ("filename" in cleaned.behaviorHints) cleaned.behaviorHints.filename = cleanText(cleaned.behaviorHints.filename);
-    }
-    return cleaned;
-  });
+  return streams
+    .filter((stream) => !isPremiumStream(stream))
+    .map((stream) => {
+      const cleaned = { ...stream };
+      if ("title" in cleaned) cleaned.title = cleanText(cleaned.title);
+      if ("name" in cleaned) cleaned.name = cleanText(cleaned.name);
+      if ("description" in cleaned) cleaned.description = cleanText(cleaned.description);
+      if ("behaviorHints" in cleaned && cleaned.behaviorHints && typeof cleaned.behaviorHints === "object") {
+        cleaned.behaviorHints = { ...cleaned.behaviorHints };
+        if ("filename" in cleaned.behaviorHints) cleaned.behaviorHints.filename = cleanText(cleaned.behaviorHints.filename);
+      }
+      return cleaned;
+    });
+}
+
+function malaysiaScheduleLabelForMeta(meta = {}) {
+  const value = meta.start ?? meta.startTime ?? meta.released ?? meta.releaseDate ?? meta.behaviorHints?.startTime ?? null;
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+
+  const dateText = new Intl.DateTimeFormat("en-MY", {
+    timeZone: "Asia/Kuala_Lumpur",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+
+  const timeText = new Intl.DateTimeFormat("en-MY", {
+    timeZone: "Asia/Kuala_Lumpur",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(date);
+
+  return `${dateText} · ${timeText} MYT (UTC+8)`;
+}
+
+function localizeMeta(meta, proxyId) {
+  if (!meta) return null;
+  const scheduleLabel = malaysiaScheduleLabelForMeta(meta);
+  const lines = String(meta.description || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/\b(?:UTC|GMT)\b/i.test(line));
+
+  return {
+    ...meta,
+    id: proxyId,
+    type: "tv",
+    releaseInfo: scheduleLabel || meta.releaseInfo,
+    description: [scheduleLabel, ...lines].filter(Boolean).join("\n")
+  };
 }
 
 function configurePage(req) {
@@ -213,7 +271,7 @@ async function handler(req, res) {
     const parsed = parseProxyId(proxyId);
     if (!parsed) return json(res, 404, { meta: null });
     const payload = await fetchMeta(DEFAULT_UPSTREAM, parsed.t, parsed.i);
-    const meta = payload?.meta ? { ...payload.meta, id: proxyId, type: "tv" } : null;
+    const meta = payload?.meta ? localizeMeta(payload.meta, proxyId) : null;
     return json(res, 200, { meta });
   }
 
@@ -246,7 +304,7 @@ async function handler(req, res) {
     if (!parsed) return json(res, 404, { meta: null });
 
     const payload = await fetchMeta(config.upstream, parsed.t, parsed.i);
-    const meta = payload?.meta ? { ...payload.meta, id: proxyId, type: "tv" } : null;
+    const meta = payload?.meta ? localizeMeta(payload.meta, proxyId) : null;
     return json(res, 200, { meta });
   }
 
