@@ -7,6 +7,23 @@ import { enrichArtwork } from "./providers/thesportsdb.js";
 
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_MS || 60_000);
 const cache = new Map();
+const metaCacheById = new Map();
+
+function rememberMeta(meta) {
+  if (!meta?.id) return meta;
+  metaCacheById.set(meta.id, { value: meta, expiresAt: Date.now() + 6 * 60 * 60_000 });
+  return meta;
+}
+
+export function getCachedCatalogMeta(id) {
+  const entry = metaCacheById.get(id);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    metaCacheById.delete(id);
+    return null;
+  }
+  return entry.value;
+}
 
 function cacheGet(key) {
   const entry = cache.get(key);
@@ -185,6 +202,7 @@ export async function buildGroupCatalog(manifestUrl, groupId) {
     deduped.map((meta, index) => index < ARTWORK_ENRICH_LIMIT ? enrichArtwork(meta) : meta)
   );
 
+  enriched.forEach(rememberMeta);
   return cacheSet(key, enriched);
 }
 
