@@ -5,6 +5,8 @@ import { GROUP_BY_ID, GROUPS } from "./constants.js";
 import { fetchManifest, fetchMeta, fetchStreams, normalizeManifestUrl } from "./upstream.js";
 
 const PORT = Number(process.env.PORT || 3000);
+const DEFAULT_UPSTREAM = process.env.DEFAULT_UPSTREAM ? normalizeManifestUrl(process.env.DEFAULT_UPSTREAM) : null;
+const DEFAULT_GROUPS = GROUPS.map((group) => group.id);
 
 function json(res, status, body, extraHeaders = {}) {
   res.writeHead(status, {
@@ -41,6 +43,7 @@ function appBase(req) {
 
 function configurePage(req) {
   const base = appBase(req);
+  const defaultUpstream = DEFAULT_UPSTREAM || "";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -78,6 +81,7 @@ function configurePage(req) {
 </main>
 <script>
 const base=${JSON.stringify(base)};
+const defaultUpstream=${JSON.stringify(defaultUpstream)};
 const upstream=document.getElementById("upstream");
 const result=document.getElementById("result");
 const link=document.getElementById("link");
@@ -110,7 +114,9 @@ build.addEventListener("click",()=>{
   }
   const groups=pills.filter((pill)=>pill.classList.contains("active")).map((pill)=>pill.dataset.group);
   if(!groups.length){alert("Select at least one sports category.");return}
-  const url=base+"/c/"+makeToken(value,groups)+"/manifest.json";
+  const allDefaultGroups=["football","racing","fight","us-sports","racquet","other"];
+  const isDefault=value===defaultUpstream && groups.length===allDefaultGroups.length && allDefaultGroups.every((g)=>groups.includes(g));
+  const url=isDefault ? base+"/manifest.json" : base+"/c/"+makeToken(value,groups)+"/manifest.json";
   link.textContent=url;
   open.href=url;
   result.style.display="block";
@@ -148,6 +154,14 @@ async function handler(req, res) {
 
   if (url.pathname === "/health") {
     return json(res, 200, { ok: true, service: "nuvio-sports-hub", version: "0.1.0" });
+  }
+
+  if (url.pathname === "/manifest.json") {
+    if (!DEFAULT_UPSTREAM) return json(res, 503, { error: "Default upstream is not configured" });
+    const sourceManifest = await fetchManifest(DEFAULT_UPSTREAM);
+    return json(res, 200, buildManifest(sourceManifest, DEFAULT_GROUPS), {
+      "cache-control": "public, max-age=300"
+    });
   }
 
   const manifestMatch = url.pathname.match(/^\/c\/([^/]+)\/manifest\.json$/);
