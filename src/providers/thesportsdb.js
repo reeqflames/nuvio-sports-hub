@@ -5,6 +5,13 @@ const BASE = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
 const TIMEOUT_MS = 7000;
 const EVENT_CACHE_TTL_MS = 6 * 60 * 60_000;
 const EVENT_CACHE = new Map();
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "https://nuvio-sports-hub.onrender.com";
+
+function generatedArtwork(meta = {}) {
+  const title = meta.name || meta.title || "Sports Event";
+  const subtitle = meta.releaseInfo || meta.league || meta.competition || "Nuvio Sports Hub";
+  return PUBLIC_BASE_URL + "/art/card.png?title=" + encodeURIComponent(title) + "&subtitle=" + encodeURIComponent(subtitle);
+}
 
 function timeoutSignal(ms = TIMEOUT_MS) {
   const controller = new AbortController();
@@ -92,19 +99,17 @@ export function eventArtwork(event = {}) {
 }
 
 export function applyArtwork(meta = {}, event = null, { detail = false } = {}) {
-  if (!event) return meta;
-  const artwork = eventArtwork(event);
+  const artwork = event ? eventArtwork(event) : {};
+  const generated = generatedArtwork(meta);
+  const hasTsdbArtwork = Boolean(artwork.poster || artwork.background || artwork.badge);
 
   return {
     ...meta,
-    // Catalog cards can still use the best event poster/thumb.
-    poster: artwork.poster || meta.poster,
-    // Detail pages only override the hero when TheSportsDB has genuine wide art.
-    // Otherwise preserve the upstream/background fallback instead of stretching
-    // a portrait poster across the screen.
-    background: artwork.background || meta.background,
+    // Priority: TheSportsDB -> generated clean Sports Hub card -> upstream artwork.
+    poster: artwork.poster || generated || meta.poster,
+    background: artwork.background || generated || meta.background,
     logo: artwork.badge || meta.logo,
-    _artworkSource: artwork.poster || artwork.background || artwork.badge ? "thesportsdb" : meta._artworkSource,
+    _artworkSource: hasTsdbArtwork ? "thesportsdb" : "generated",
     _artworkMode: detail ? "detail-wide" : "catalog"
   };
 }
