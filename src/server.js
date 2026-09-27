@@ -4,6 +4,7 @@ import { buildGroupCatalog, buildManifest } from "./catalog.js";
 import { GROUP_BY_ID, GROUPS } from "./constants.js";
 import { fetchManifest, fetchMeta, fetchStreams, normalizeManifestUrl } from "./upstream.js";
 import { providerHealth } from "./providers/registry.js";
+import { formatMalaysiaSchedule, localizeDescription } from "./core/time.js";
 
 const PORT = Number(process.env.PORT || 3000);
 const DEFAULT_UPSTREAM = process.env.DEFAULT_UPSTREAM ? normalizeManifestUrl(process.env.DEFAULT_UPSTREAM) : null;
@@ -81,45 +82,15 @@ function sanitizeStreams(streams = []) {
     });
 }
 
-function malaysiaScheduleLabelForMeta(meta = {}) {
-  const value = meta.start ?? meta.startTime ?? meta.released ?? meta.releaseDate ?? meta.behaviorHints?.startTime ?? null;
-  if (!value) return null;
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return null;
-
-  const dateText = new Intl.DateTimeFormat("en-MY", {
-    timeZone: "Asia/Kuala_Lumpur",
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(date);
-
-  const timeText = new Intl.DateTimeFormat("en-MY", {
-    timeZone: "Asia/Kuala_Lumpur",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).format(date);
-
-  return `${dateText} · ${timeText} MYT (UTC+8)`;
-}
-
 function localizeMeta(meta, proxyId) {
   if (!meta) return null;
-  const scheduleLabel = malaysiaScheduleLabelForMeta(meta);
-  const lines = String(meta.description || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => !/\b(?:UTC|GMT)\b/i.test(line));
-
+  const scheduleLabel = formatMalaysiaSchedule(meta, { includeYear: true });
   return {
     ...meta,
     id: proxyId,
     type: "tv",
     releaseInfo: scheduleLabel || meta.releaseInfo,
-    description: [scheduleLabel, ...lines].filter(Boolean).join("\n")
+    description: localizeDescription(meta, scheduleLabel)
   };
 }
 
