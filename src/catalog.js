@@ -1,6 +1,7 @@
 import { GENERIC_CATALOG_KEYWORDS, GROUPS, GROUP_BY_ID } from "./constants.js";
 import { makeProxyId } from "./codec.js";
 import { fetchCatalog, fetchManifest } from "./upstream.js";
+import { withLeagueTag } from "./core/league.js";
 
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_MS || 60_000);
 const MALAYSIA_TIME_ZONE = "Asia/Kuala_Lumpur";
@@ -195,7 +196,7 @@ export async function buildGroupCatalog(manifestUrl, groupId) {
       const classified = classifyMeta(meta);
       const directCatalogMatch = matchesAny(catalogText(catalog), GROUP_BY_ID.get(groupId)?.keywords || []);
       if (classified === groupId || (directCatalogMatch && !classified)) {
-        metas.push(normalizeMeta(meta, catalog));
+        metas.push(withLeagueTag(normalizeMeta(meta, catalog)));
       }
     }
   }
