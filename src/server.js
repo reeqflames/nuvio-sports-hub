@@ -82,18 +82,50 @@ const upstream=document.getElementById("upstream");
 const result=document.getElementById("result");
 const link=document.getElementById("link");
 const open=document.getElementById("open");
+const build=document.getElementById("build");
+const copy=document.getElementById("copy");
 const pills=[...document.querySelectorAll(".pill[data-group]")];
-pills.forEach((pill)=>pill.onclick=()=>pill.classList.toggle("active"));
-function token(value,groups){return btoa(unescape(encodeURIComponent(JSON.stringify({upstream:value,groups})))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
-document.getElementById("build").onclick=()=>{
- const value=upstream.value.trim();
- if(!/^https?:\/\//i.test(value)){alert("Paste a valid http/https manifest URL first.");return}
- const groups=pills.filter((pill)=>pill.classList.contains("active")).map((pill)=>pill.dataset.group);
- if(!groups.length){alert("Select at least one sports category.");return}
- const url=base+"/c/"+token(value,groups)+"/manifest.json";
- link.textContent=url;open.href=url;result.style.display="block";
-};
-document.getElementById("copy").onclick=async()=>{await navigator.clipboard.writeText(link.textContent);document.getElementById("copy").textContent="Copied ✓"};
+
+pills.forEach((pill)=>{
+  pill.addEventListener("click",()=>{
+    pill.classList.toggle("active");
+    pill.setAttribute("aria-pressed", pill.classList.contains("active") ? "true" : "false");
+  });
+});
+
+function makeToken(value,groups){
+  let encoded=btoa(unescape(encodeURIComponent(JSON.stringify({upstream:value,groups}))));
+  encoded=encoded.split("+").join("-").split("/").join("_");
+  while(encoded.endsWith("=")) encoded=encoded.slice(0,-1);
+  return encoded;
+}
+
+build.addEventListener("click",()=>{
+  const value=upstream.value.trim();
+  let parsed;
+  try { parsed=new URL(value); } catch { alert("Paste a valid Highfly manifest URL first."); return; }
+  if(parsed.protocol!=="http:" && parsed.protocol!=="https:"){
+    alert("Manifest URL must start with http:// or https://");
+    return;
+  }
+  const groups=pills.filter((pill)=>pill.classList.contains("active")).map((pill)=>pill.dataset.group);
+  if(!groups.length){alert("Select at least one sports category.");return}
+  const url=base+"/c/"+makeToken(value,groups)+"/manifest.json";
+  link.textContent=url;
+  open.href=url;
+  result.style.display="block";
+  build.textContent="Sports Hub link ready ✓";
+  result.scrollIntoView({behavior:"smooth",block:"nearest"});
+});
+
+copy.addEventListener("click",async()=>{
+  try{
+    await navigator.clipboard.writeText(link.textContent);
+    copy.textContent="Copied ✓";
+  }catch{
+    alert("Copy failed. Long-press the generated link and copy it manually.");
+  }
+});
 </script>
 </body></html>`;
 }
