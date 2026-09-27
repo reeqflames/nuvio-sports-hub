@@ -3,6 +3,7 @@ import { decodeJson, parseProxyId } from "./codec.js";
 import { buildGroupCatalog, buildManifest } from "./catalog.js";
 import { GROUP_BY_ID, GROUPS } from "./constants.js";
 import { fetchManifest, fetchMeta, fetchStreams, normalizeManifestUrl } from "./upstream.js";
+import { providerHealth } from "./providers/registry.js";
 
 const PORT = Number(process.env.PORT || 3000);
 const DEFAULT_UPSTREAM = process.env.DEFAULT_UPSTREAM ? normalizeManifestUrl(process.env.DEFAULT_UPSTREAM) : null;
@@ -235,6 +236,11 @@ async function handler(req, res) {
 
   if (url.pathname === "/health") {
     return json(res, 200, { ok: true, service: "nuvio-sports-hub", version: "0.1.0" });
+  }
+
+  if (url.pathname === "/sources") {
+    const health = await providerHealth({ highflyManifestUrl: DEFAULT_UPSTREAM });
+    return json(res, 200, health, { "cache-control": "no-store" });
   }
 
   if (url.pathname === "/manifest.json") {
