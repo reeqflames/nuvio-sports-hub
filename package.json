@@ -1,0 +1,14 @@
+{
+  "name": "nuvio-sports-hub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TV-first Nuvio sports hub that reorganizes a user-supplied sports addon into six clean collections.",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
