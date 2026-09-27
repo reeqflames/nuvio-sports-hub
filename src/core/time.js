@@ -132,3 +132,16 @@ export function localizeDescription(meta = {}, scheduleLabel = formatMalaysiaSch
 
   return [scheduleLabel, ...lines].join("\n");
 }
+
+
+export function cleanDescriptionWithoutSchedule(meta = {}) {
+  const original = String(meta.description || "");
+  return original
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/\b(?:UTC|GMT)\b/i.test(line))
+    .filter((line) => !/MYT\s*\(UTC\+8\)/i.test(line))
+    .filter((line) => !/^sources?:/i.test(line))
+    .join("\n");
+}
