@@ -68,15 +68,24 @@ export class TheSportsDbProvider extends SportsProvider {
 
 export function eventArtwork(event = {}) {
   return {
-    poster: event.strPoster || event.strThumb || null,
-    // Detail heroes need wide artwork. Do not use strThumb here because
-    // many event thumbs/posters are portrait and Nuvio will crop/zoom them badly.
+    // Nuvio sports rows are landscape cards, so prefer wide event art first.
+    // Portrait posters are only a last resort.
+    poster:
+      event.strThumb ||
+      event.strBanner ||
+      event.strFanart ||
+      event.strFanart1 ||
+      event.strFanart2 ||
+      event.strFanart3 ||
+      event.strPoster ||
+      null,
     background:
       event.strFanart ||
       event.strFanart1 ||
       event.strFanart2 ||
       event.strFanart3 ||
       event.strBanner ||
+      event.strThumb ||
       null,
     badge: event.strBadge || null
   };
