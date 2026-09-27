@@ -174,6 +174,38 @@ async function handler(req, res) {
     });
   }
 
+  const rootCatalogMatch = url.pathname.match(/^\/catalog\/tv\/nsh-([^/.]+)\.json$/);
+  if (rootCatalogMatch) {
+    const groupId = rootCatalogMatch[1];
+    if (!DEFAULT_UPSTREAM) return json(res, 503, { metas: [] });
+    if (!GROUP_BY_ID.has(groupId)) return json(res, 404, { metas: [] });
+    const metas = await buildGroupCatalog(DEFAULT_UPSTREAM, groupId);
+    return json(res, 200, { metas });
+  }
+
+  const rootMetaMatch = url.pathname.match(/^\/meta\/tv\/(nsh\.[^/]+)\.json$/);
+  if (rootMetaMatch) {
+    if (!DEFAULT_UPSTREAM) return json(res, 503, { meta: null });
+    const proxyId = rootMetaMatch[1];
+    const parsed = parseProxyId(proxyId);
+    if (!parsed) return json(res, 404, { meta: null });
+    const payload = await fetchMeta(DEFAULT_UPSTREAM, parsed.t, parsed.i);
+    const meta = payload?.meta ? { ...payload.meta, id: proxyId, type: "tv" } : null;
+    return json(res, 200, { meta });
+  }
+
+  const rootStreamMatch = url.pathname.match(/^\/stream\/tv\/(nsh\.[^/]+)\.json$/);
+  if (rootStreamMatch) {
+    if (!DEFAULT_UPSTREAM) return json(res, 503, { streams: [] });
+    const proxyId = rootStreamMatch[1];
+    const parsed = parseProxyId(proxyId);
+    if (!parsed) return json(res, 404, { streams: [] });
+    const payload = await fetchStreams(DEFAULT_UPSTREAM, parsed.t, parsed.i);
+    return json(res, 200, { streams: payload?.streams || [] }, {
+      "cache-control": "no-store"
+    });
+  }
+
   const catalogMatch = url.pathname.match(/^\/c\/([^/]+)\/catalog\/tv\/nsh-([^/.]+)\.json$/);
   if (catalogMatch) {
     const [, token, groupId] = catalogMatch;
