@@ -103,13 +103,19 @@ export function applyArtwork(meta = {}, event = null, { detail = false } = {}) {
   const generated = generatedArtwork(meta);
   const hasTsdbArtwork = Boolean(artwork.poster || artwork.background || artwork.badge);
 
+  const poster = artwork.poster || meta.poster || meta.background || generated;
+  const background = artwork.background || meta.background || meta.poster || generated;
+
   return {
     ...meta,
-    // Priority: TheSportsDB -> generated clean Sports Hub card -> upstream artwork.
-    poster: artwork.poster || generated || meta.poster,
-    background: artwork.background || generated || meta.background,
+    // Priority: TheSportsDB -> upstream artwork -> generated fallback.
+    // Generated cards are only used when there is genuinely no usable image.
+    poster,
+    background,
     logo: artwork.badge || meta.logo,
-    _artworkSource: hasTsdbArtwork ? "thesportsdb" : "generated",
+    _artworkSource: hasTsdbArtwork
+      ? "thesportsdb"
+      : (meta.poster || meta.background ? "upstream" : "generated"),
     _artworkMode: detail ? "detail-wide" : "catalog"
   };
 }
