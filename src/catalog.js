@@ -3,6 +3,7 @@ import { makeProxyId } from "./codec.js";
 import { fetchCatalog, fetchManifest } from "./upstream.js";
 import { withLeagueTag } from "./core/league.js";
 import { eventTimestamp, formatMalaysiaSchedule, localizeDescription, statusWeight } from "./core/time.js";
+import { enrichArtwork } from "./providers/thesportsdb.js";
 
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_MS || 60_000);
 const cache = new Map();
@@ -140,7 +141,8 @@ export async function buildGroupCatalog(manifestUrl, groupId) {
       const classified = classifyMeta(meta);
       const directCatalogMatch = matchesAny(catalogText(catalog), GROUP_BY_ID.get(groupId)?.keywords || []);
       if (classified === groupId || (directCatalogMatch && !classified)) {
-        metas.push(withLeagueTag(normalizeMeta(meta, catalog)));
+        const normalized = withLeagueTag(normalizeMeta(meta, catalog));
+        metas.push(await enrichArtwork(normalized));
       }
     }
   }
