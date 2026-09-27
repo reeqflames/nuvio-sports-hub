@@ -4,7 +4,7 @@ import { buildGroupCatalog, buildManifest } from "./catalog.js";
 import { GROUP_BY_ID, GROUPS } from "./constants.js";
 import { fetchManifest, fetchMeta, fetchStreams, normalizeManifestUrl } from "./upstream.js";
 import { providerHealth } from "./providers/registry.js";
-import { formatMalaysiaSchedule, localizeDescription } from "./core/time.js";
+import { cleanDescriptionWithoutSchedule, formatMalaysiaSchedule, localizeDescription } from "./core/time.js";
 import { enrichArtwork } from "./providers/thesportsdb.js";
 import { renderFallbackCard } from "./artwork.js";
 
@@ -92,7 +92,7 @@ async function localizeMeta(meta, proxyId) {
     id: proxyId,
     type: "tv",
     releaseInfo: scheduleLabel || meta.releaseInfo,
-    description: localizeDescription(meta, scheduleLabel)
+    description: cleanDescriptionWithoutSchedule(meta)
   };
   return enrichArtwork(localized, { detail: true });
 }
