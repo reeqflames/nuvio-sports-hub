@@ -2,41 +2,9 @@ import { GENERIC_CATALOG_KEYWORDS, GROUPS, GROUP_BY_ID } from "./constants.js";
 import { makeProxyId } from "./codec.js";
 import { fetchCatalog, fetchManifest } from "./upstream.js";
 import { withLeagueTag } from "./core/league.js";
+import { eventTimestamp, formatMalaysiaSchedule, localizeDescription, statusWeight } from "./core/time.js";
 
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_MS || 60_000);
-const MALAYSIA_TIME_ZONE = "Asia/Kuala_Lumpur";
-
-function malaysiaTimeParts(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return null;
-
-  const dateText = new Intl.DateTimeFormat("en-MY", {
-    timeZone: MALAYSIA_TIME_ZONE,
-    weekday: "short",
-    day: "2-digit",
-    month: "short"
-  }).format(date);
-
-  const timeText = new Intl.DateTimeFormat("en-MY", {
-    timeZone: MALAYSIA_TIME_ZONE,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).format(date);
-
-  return { dateText, timeText };
-}
-
-function sourceStart(meta) {
-  return meta.start ?? meta.startTime ?? meta.released ?? meta.releaseDate ?? meta.behaviorHints?.startTime ?? null;
-}
-
-function malaysiaScheduleLabel(meta) {
-  const parts = malaysiaTimeParts(sourceStart(meta));
-  if (!parts) return null;
-  return `${parts.dateText} • ${parts.timeText} MYT (UTC+8)`;
-}
 const cache = new Map();
 
 function cacheGet(key) {
@@ -121,29 +89,8 @@ export function sourceCatalogsForGroup(manifest, groupId) {
   return catalogs.filter(isGenericCatalog);
 }
 
-function detectStatus(meta) {
-  const text = metaText(meta);
-  if (/\b(live|live now|in progress)\b/i.test(text)) return "live";
-  if (/\b(starting soon|starts soon)\b/i.test(text)) return "starting-soon";
-  return "upcoming";
-}
-
-function statusWeight(meta) {
-  const status = detectStatus(meta);
-  if (status === "live") return 0;
-  if (status === "starting-soon") return 1;
-  return 2;
-}
-
 function extractTime(meta) {
-  const candidates = [
-    sourceStart(meta)
-  ];
-  for (const value of candidates) {
-    const timestamp = value ? new Date(value).getTime() : NaN;
-    if (Number.isFinite(timestamp)) return timestamp;
-  }
-  return Number.MAX_SAFE_INTEGER;
+  return eventTimestamp(meta) ?? Number.MAX_SAFE_INTEGER;
 }
 
 function dedupeKey(meta) {
@@ -157,11 +104,8 @@ function normalizeMeta(meta, sourceCatalog) {
   const sourceId = String(meta.id ?? "");
   const proxyId = makeProxyId(sourceType, sourceId);
 
-  const scheduleLabel = malaysiaScheduleLabel(meta);
-  const originalDescription = meta.description ? String(meta.description) : "";
-  const description = scheduleLabel
-    ? [scheduleLabel, originalDescription].filter(Boolean).join("\n")
-    : originalDescription;
+  const scheduleLabel = formatMalaysiaSchedule(meta);
+  const description = localizeDescription(meta, scheduleLabel);
 
   return {
     ...meta,
