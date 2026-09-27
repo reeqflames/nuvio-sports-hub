@@ -171,6 +171,7 @@ export function eventArtwork(event = {}) {
 }
 
 function detailLines(event = {}) {
+  event = event || {};
   const lines = [];
   const league = event.strLeague || event.strLeagueAlternate;
   const matchup = [event.strHomeTeam, event.strAwayTeam].filter(Boolean).join(" vs ");
