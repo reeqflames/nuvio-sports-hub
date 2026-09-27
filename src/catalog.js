@@ -141,8 +141,7 @@ export async function buildGroupCatalog(manifestUrl, groupId) {
       const classified = classifyMeta(meta);
       const directCatalogMatch = matchesAny(catalogText(catalog), GROUP_BY_ID.get(groupId)?.keywords || []);
       if (classified === groupId || (directCatalogMatch && !classified)) {
-        const normalized = withLeagueTag(normalizeMeta(meta, catalog));
-        metas.push(await enrichArtwork(normalized));
+        metas.push(withLeagueTag(normalizeMeta(meta, catalog)));
       }
     }
   }
@@ -163,7 +162,14 @@ export async function buildGroupCatalog(manifestUrl, groupId) {
     return String(a.name).localeCompare(String(b.name));
   });
 
-  return cacheSet(key, deduped);
+  // Keep free-tier metadata calls bounded: enrich the first screenful first,
+  // then preserve upstream artwork as fallback for the remainder.
+  const ARTWORK_ENRICH_LIMIT = Number(process.env.ARTWORK_ENRICH_LIMIT || 24);
+  const enriched = await Promise.all(
+    deduped.map((meta, index) => index < ARTWORK_ENRICH_LIMIT ? enrichArtwork(meta) : meta)
+  );
+
+  return cacheSet(key, enriched);
 }
 
 export function buildManifest(sourceManifest = {}, selectedGroupIds = GROUPS.map((group) => group.id)) {
