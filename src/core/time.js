@@ -96,21 +96,26 @@ export function formatMalaysiaSchedule(meta = {}, { includeYear = false } = {}) 
 
 export function eventStatus(meta = {}, now = new Date()) {
   const text = textBlob(meta);
-  if (/\b(live now|in progress|live)\b/i.test(text)) return "live";
-
   const date = eventDate(meta);
-  if (!date) {
-    if (/\b(starting soon|starts soon)\b/i.test(text)) return "starting-soon";
+
+  // If a real start time exists, trust the clock before noisy upstream labels.
+  // Many upstream posters/descriptions contain the word "LIVE" even for future events.
+  if (date) {
+    const diff = date.getTime() - now.getTime();
+
+    if (diff >= 0 && diff <= 90 * 60_000) return "starting-soon";
+
+    // Treat an event as live from its start until a conservative 4-hour window.
+    if (diff < 0 && diff >= -4 * 60 * 60_000) return "live";
+
+    if (diff < -6 * 60 * 60_000) return "past";
+    if (malaysiaDateKey(date) === malaysiaDateKey(now)) return "today";
     return "upcoming";
   }
 
-  const diff = date.getTime() - now.getTime();
-  if (/\b(starting soon|starts soon)\b/i.test(text) || (diff >= 0 && diff <= 90 * 60_000)) {
-    return "starting-soon";
-  }
-
-  if (diff < -6 * 60 * 60_000) return "past";
-  if (malaysiaDateKey(date) === malaysiaDateKey(now)) return "today";
+  // Only fall back to upstream text when no trustworthy timestamp exists.
+  if (/\b(live now|in progress|live)\b/i.test(text)) return "live";
+  if (/\b(starting soon|starts soon)\b/i.test(text)) return "starting-soon";
   return "upcoming";
 }
 
