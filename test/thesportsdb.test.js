@@ -17,7 +17,7 @@ test("detail enrichment adds structured sports metadata", () => {
     strFanart: "https://example.com/fanart.jpg"
   };
   const enriched = applyArtwork(meta, event, { detail: true });
-  assert.equal(enriched.poster, event.strFanart);
+  assert.equal(enriched.poster, event.strThumb);
   assert.equal(enriched.background, event.strFanart);
   assert.match(enriched.description, /League: Test League/);
   assert.match(enriched.description, /Venue: Test Stadium/);
