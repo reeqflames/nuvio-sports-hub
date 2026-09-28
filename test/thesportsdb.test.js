@@ -17,7 +17,7 @@ test("detail enrichment adds structured sports metadata", () => {
     strFanart: "https://example.com/fanart.jpg"
   };
   const enriched = applyArtwork(meta, event, { detail: true });
-  assert.equal(enriched.poster, event.strThumb);
+  assert.equal(enriched.poster, event.strFanart);
   assert.equal(enriched.background, event.strFanart);
   assert.match(enriched.description, /League: Test League/);
   assert.match(enriched.description, /Venue: Test Stadium/);
@@ -32,4 +32,19 @@ test("missing TheSportsDB match does not crash detail enrichment", () => {
   assert.equal(enriched.name, "Formula 1 Bahrain GP");
   assert.ok(enriched.poster);
   assert.ok(enriched.background);
+});
+
+
+test("team badges stay metadata and are not stretched into full-card posters", () => {
+  const meta = { name: "Team A vs Team B", description: "" };
+  const event = {
+    strHomeTeam: "Team A",
+    strAwayTeam: "Team B",
+    strHomeTeamBadge: "https://example.com/a.png",
+    strAwayTeamBadge: "https://example.com/b.png"
+  };
+  const enriched = applyArtwork(meta, event);
+  assert.match(enriched.poster, /\/art\/card\.png\?/);
+  assert.equal(enriched.homeTeamBadge, event.strHomeTeamBadge);
+  assert.equal(enriched.awayTeamBadge, event.strAwayTeamBadge);
 });
