@@ -3,7 +3,7 @@ import { makeProxyId } from "./codec.js";
 import { fetchCatalog, fetchManifest } from "./upstream.js";
 import { withLeagueTag } from "./core/league.js";
 import { eventTimestamp, formatMalaysiaSchedule, localizeDescription, statusWeight } from "./core/time.js";
-import { enrichArtwork } from "./providers/thesportsdb.js";
+import { applyArtwork, enrichArtwork } from "./providers/thesportsdb.js";
 
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_MS || 60_000);
 const cache = new Map();
@@ -199,7 +199,11 @@ export async function buildGroupCatalog(manifestUrl, groupId) {
   // then preserve upstream artwork as fallback for the remainder.
   const ARTWORK_ENRICH_LIMIT = Number(process.env.ARTWORK_ENRICH_LIMIT || 24);
   const enriched = await Promise.all(
-    deduped.map((meta, index) => index < ARTWORK_ENRICH_LIMIT ? enrichArtwork(meta) : meta)
+    deduped.map((meta, index) =>
+      index < ARTWORK_ENRICH_LIMIT
+        ? enrichArtwork(meta)
+        : applyArtwork(meta, null)
+    )
   );
 
   enriched.forEach(rememberMeta);
