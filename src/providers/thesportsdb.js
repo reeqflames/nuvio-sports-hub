@@ -148,15 +148,13 @@ export class TheSportsDbProvider extends SportsProvider {
 export function eventArtwork(event = {}) {
   return {
     poster:
-      event.strThumb ||
       event.strBanner ||
+      event.strThumb ||
       event.strFanart ||
       event.strFanart1 ||
       event.strFanart2 ||
       event.strFanart3 ||
       event.strPoster ||
-      event.strHomeTeamBadge ||
-      event.strAwayTeamBadge ||
       null,
     background:
       event.strFanart ||
@@ -166,7 +164,9 @@ export function eventArtwork(event = {}) {
       event.strBanner ||
       event.strThumb ||
       null,
-    badge: event.strBadge || event.strLeagueBadge || null
+    badge: event.strBadge || event.strLeagueBadge || null,
+    homeBadge: event.strHomeTeamBadge || null,
+    awayBadge: event.strAwayTeamBadge || null
   };
 }
 
@@ -209,6 +209,8 @@ export function applyArtwork(meta = {}, event = null, { detail = false } = {}) {
     venue: event?.strVenue || meta.venue,
     homeTeam: event?.strHomeTeam || meta.homeTeam,
     awayTeam: event?.strAwayTeam || meta.awayTeam,
+    homeTeamBadge: artwork.homeBadge || meta.homeTeamBadge,
+    awayTeamBadge: artwork.awayBadge || meta.awayTeamBadge,
     _artworkSource: hasTsdbArtwork
       ? "thesportsdb"
       : (meta.poster || meta.background ? "upstream" : "generated"),
